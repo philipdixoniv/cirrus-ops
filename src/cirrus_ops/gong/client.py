@@ -113,7 +113,14 @@ class GongClient:
             A ``(calls, next_cursor)`` pair.  *next_cursor* is ``None`` when
             there are no more pages.
         """
-        body: dict[str, Any] = {"filter": {}}
+        body: dict[str, Any] = {
+            "filter": {},
+            "contentSelector": {
+                "exposedFields": {
+                    "parties": True,
+                },
+            },
+        }
 
         if from_datetime:
             body["filter"]["fromDateTime"] = from_datetime
@@ -122,7 +129,7 @@ class GongClient:
         if cursor:
             body["cursor"] = cursor
 
-        data = await self._request("POST", "/v2/calls", json=body)
+        data = await self._request("POST", "/v2/calls/extensive", json=body)
 
         calls: list[dict[str, Any]] = data.get("calls", [])
         records = data.get("records", {})

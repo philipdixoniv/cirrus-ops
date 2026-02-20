@@ -1,8 +1,16 @@
 import asyncio
+import logging
 from datetime import datetime
+import click
 import typer
 from rich.console import Console
 from rich.table import Table
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 app = typer.Typer(name="cirrus", help="Cirrus Ops - Meeting transcript pipeline")
 sync_app = typer.Typer(help="Sync meetings from platforms")
@@ -213,7 +221,7 @@ def generate(
         ...,
         "--type",
         help="Content type to generate",
-        click_type=typer.Choice(["linkedin_post", "book_excerpt", "tweet", "blog_post"]),
+        click_type=click.Choice(["linkedin_post", "book_excerpt", "tweet", "blog_post"]),
     ),
 ) -> None:
     """Generate content from an extracted customer story."""

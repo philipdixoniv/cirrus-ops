@@ -156,7 +156,7 @@ def _call_claude_for_stories(
 
     response = client.messages.create(
         model=settings.claude_model,
-        max_tokens=4096,
+        max_tokens=16384,
         system=STORY_EXTRACTION_SYSTEM,
         tools=[tool_schema],
         tool_choice={"type": "tool", "name": "extract_stories"},

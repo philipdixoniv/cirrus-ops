@@ -6,6 +6,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from cirrus_ops import db
 from cirrus_ops.config import settings
 from cirrus_ops.gong.client import GongClient
@@ -292,6 +294,24 @@ async def incremental_sync() -> None:
 # ---------------------------------------------------------------------------
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30), reraise=True)
+def _db_upsert_meeting(data: dict[str, Any]) -> dict[str, Any]:
+    """Upsert a meeting with retry on transient connection errors."""
+    return db.upsert_meeting(data)
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30), reraise=True)
+def _db_upsert_participants(meeting_id: str, participants: list[dict[str, Any]]) -> None:
+    """Upsert participants with retry on transient connection errors."""
+    db.upsert_participants(meeting_id, participants)
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30), reraise=True)
+def _db_upsert_transcript(data: dict[str, Any]) -> None:
+    """Upsert a transcript with retry on transient connection errors."""
+    db.upsert_transcript(data)
+
+
 async def _process_batch(
     gong: GongClient,
     calls: list[dict[str, Any]],
@@ -299,22 +319,29 @@ async def _process_batch(
 ) -> None:
     """Upsert meetings, participants, and transcripts for a batch of calls."""
     for call in calls:
-        # Upsert the meeting row
-        meeting_data = _normalize_call(call, users)
-        meeting = db.upsert_meeting(meeting_data)
-        meeting_id: str = meeting["id"]
+        try:
+            # Upsert the meeting row
+            meeting_data = _normalize_call(call, users)
+            meeting = _db_upsert_meeting(meeting_data)
+            meeting_id: str = meeting["id"]
 
-        # Upsert participants
-        participants = _normalize_participants(call, users)
-        db.upsert_participants(meeting_id, participants)
+            # Upsert participants
+            participants = _normalize_participants(call, users)
+            _db_upsert_participants(meeting_id, participants)
 
-        # Fetch and upsert transcript
-        call_id = str(call.get("id", call.get("metaData", {}).get("id", "")))
-        transcript_data = await gong.get_call_transcript(call_id)
-        if transcript_data:
-            normalized = _normalize_transcript(transcript_data)
-            normalized["meeting_id"] = meeting_id
-            db.upsert_transcript(normalized)
+            # Fetch and upsert transcript
+            call_id = str(call.get("id", call.get("metaData", {}).get("id", "")))
+            transcript_data = await gong.get_call_transcript(call_id)
+            if transcript_data:
+                normalized = _normalize_transcript(transcript_data)
+                normalized["meeting_id"] = meeting_id
+                _db_upsert_transcript(normalized)
+        except Exception:
+            logger.error(
+                "Failed to process call %s, skipping",
+                call.get("metaData", {}).get("id", "unknown"),
+                exc_info=True,
+            )
 
 
 def _format_error() -> str:
