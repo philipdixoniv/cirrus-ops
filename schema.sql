@@ -159,3 +159,57 @@ CREATE TRIGGER sync_state_updated_at
 CREATE TRIGGER generated_content_updated_at
     BEFORE UPDATE ON generated_content
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- Mining profiles & grounding knowledge
+-- ============================================================
+
+CREATE TABLE mining_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    description TEXT,
+    -- Extraction config
+    extraction_system_prompt TEXT NOT NULL,
+    extraction_user_prompt TEXT NOT NULL,
+    themes JSONB DEFAULT '[]'::jsonb,
+    extraction_tool_schema JSONB,
+    -- Generation config
+    generation_system_prompt TEXT NOT NULL,
+    -- Settings
+    confidence_threshold FLOAT DEFAULT 0.5,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE profile_content_types (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES mining_profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    prompt_template TEXT NOT NULL,
+    max_tokens INTEGER DEFAULT 4096,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (profile_id, name)
+);
+
+CREATE TABLE profile_knowledge (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES mining_profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    usage TEXT NOT NULL DEFAULT 'both',
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (profile_id, name)
+);
+
+CREATE INDEX idx_mining_profiles_name ON mining_profiles(name);
+CREATE INDEX idx_profile_content_types_profile ON profile_content_types(profile_id);
+CREATE INDEX idx_profile_knowledge_profile ON profile_knowledge(profile_id);
+
+CREATE TRIGGER mining_profiles_updated_at
+    BEFORE UPDATE ON mining_profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
