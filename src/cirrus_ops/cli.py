@@ -15,6 +15,8 @@ logging.basicConfig(
 app = typer.Typer(name="cirrus", help="Cirrus Ops - Meeting transcript pipeline")
 sync_app = typer.Typer(help="Sync meetings from platforms")
 app.add_typer(sync_app, name="sync")
+profiles_app = typer.Typer(help="Manage mining profiles")
+app.add_typer(profiles_app, name="profiles")
 console = Console()
 
 
@@ -160,6 +162,7 @@ def mine(
     meeting_id: str = typer.Option(None, "--meeting-id", help="Mine a single meeting by ID"),
     batch: bool = typer.Option(False, "--batch", help="Mine all meetings since a given date"),
     since: str = typer.Option(None, "--since", help="Date string (YYYY-MM-DD) for batch mining"),
+    profile: str = typer.Option("default", "--profile", help="Mining profile to use"),
 ) -> None:
     """Extract customer stories from meeting transcripts."""
     from cirrus_ops.mining.extractor import extract_stories
@@ -167,8 +170,11 @@ def mine(
 
     try:
         if meeting_id:
-            console.print(f"[bold blue]Mining stories from meeting {meeting_id}...[/bold blue]")
-            stories = extract_stories(meeting_id)
+            console.print(
+                f"[bold blue]Mining stories from meeting {meeting_id} "
+                f"(profile: {profile})...[/bold blue]"
+            )
+            stories = extract_stories(meeting_id, profile_name=profile)
             console.print(f"[green]\u2713[/green] Extracted {len(stories)} stories")
             for story in stories:
                 console.print(f"  - {story['title']}")
@@ -178,7 +184,8 @@ def mine(
                 raise typer.Exit(code=1)
             since_date = datetime.strptime(since, "%Y-%m-%d")
             console.print(
-                f"[bold blue]Batch mining meetings since {since_date.date()}...[/bold blue]"
+                f"[bold blue]Batch mining meetings since {since_date.date()} "
+                f"(profile: {profile})...[/bold blue]"
             )
             # Fetch meetings since the given date and mine each one
             result = (
@@ -192,7 +199,7 @@ def mine(
             for row in result.data:
                 mid = row["id"]
                 try:
-                    stories = extract_stories(mid)
+                    stories = extract_stories(mid, profile_name=profile)
                     all_stories.extend(stories)
                     console.print(f"  [green]\u2713[/green] Meeting {mid}: {len(stories)} stories")
                 except ValueError as e:
@@ -217,27 +224,140 @@ def mine(
 @app.command("generate")
 def generate(
     story_id: str = typer.Option(..., "--story-id", help="ID of the extracted story"),
-    content_type: str = typer.Option(
-        ...,
-        "--type",
-        help="Content type to generate",
-        click_type=click.Choice(["linkedin_post", "book_excerpt", "tweet", "blog_post"]),
-    ),
+    content_type: str = typer.Option(..., "--type", help="Content type to generate"),
+    profile: str = typer.Option("default", "--profile", help="Mining profile to use"),
 ) -> None:
     """Generate content from an extracted customer story."""
     from cirrus_ops.mining.generator import generate_content
 
     try:
         console.print(
-            f"[bold blue]Generating {content_type} for story {story_id}...[/bold blue]"
+            f"[bold blue]Generating {content_type} for story {story_id} "
+            f"(profile: {profile})...[/bold blue]"
         )
-        result = generate_content(story_id, content_type)
+        result = generate_content(story_id, content_type, profile_name=profile)
         console.print(f"[green]\u2713[/green] Content generated (id: {result['id']})\n")
         console.print(result["content"])
     except Exception:
         console.print("[red]\u2717[/red] Generation failed")
         console.print_exception()
         raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# Profiles commands
+# ---------------------------------------------------------------------------
+
+
+@profiles_app.command("list")
+def profiles_list() -> None:
+    """List all mining profiles."""
+    from cirrus_ops import db
+
+    try:
+        profiles = db.list_profiles()
+        table = Table(title="Mining Profiles")
+        table.add_column("Name", style="cyan")
+        table.add_column("Display Name", style="bold")
+        table.add_column("Description")
+        table.add_column("Themes", justify="right")
+        table.add_column("Content Types", justify="right")
+        table.add_column("Knowledge Docs", justify="right")
+        table.add_column("Active")
+
+        for p in profiles:
+            content_types = db.get_profile_content_types(p["id"])
+            knowledge = db.get_profile_knowledge(p["id"])
+            themes = p.get("themes", [])
+
+            table.add_row(
+                p["name"],
+                p["display_name"],
+                (p.get("description") or "")[:60],
+                str(len(themes)),
+                str(len(content_types)),
+                str(len(knowledge)),
+                "[green]yes[/green]" if p.get("is_active") else "[red]no[/red]",
+            )
+
+        console.print(table)
+    except Exception:
+        console.print("[red]\u2717[/red] Failed to list profiles")
+        console.print_exception()
+        raise typer.Exit(code=1)
+
+
+@profiles_app.command("show")
+def profiles_show(
+    name: str = typer.Argument(..., help="Profile name to show"),
+) -> None:
+    """Show details of a mining profile."""
+    from cirrus_ops import db
+
+    try:
+        profile = db.get_profile(name)
+        if profile is None:
+            console.print(f"[red]\u2717[/red] Profile not found: {name}")
+            raise typer.Exit(code=1)
+
+        console.print(f"\n[bold cyan]{profile['display_name']}[/bold cyan] ({profile['name']})")
+        console.print(f"  Description: {profile.get('description', '-')}")
+        console.print(f"  Confidence threshold: {profile.get('confidence_threshold', 0.5)}")
+        console.print(f"  Active: {profile.get('is_active', True)}")
+
+        themes = profile.get("themes", [])
+        console.print(f"\n  [bold]Themes[/bold] ({len(themes)}):")
+        for t in themes:
+            console.print(f"    - {t}")
+
+        content_types = db.get_profile_content_types(profile["id"])
+        console.print(f"\n  [bold]Content Types[/bold] ({len(content_types)}):")
+        for ct in content_types:
+            console.print(
+                f"    - {ct['name']} ({ct['display_name']}) "
+                f"[dim]max_tokens={ct.get('max_tokens', 4096)}[/dim]"
+            )
+
+        knowledge = db.get_profile_knowledge(profile["id"])
+        console.print(f"\n  [bold]Knowledge Documents[/bold] ({len(knowledge)}):")
+        for k in knowledge:
+            console.print(
+                f"    - {k['name']} ({k['display_name']}) "
+                f"[dim]usage={k['usage']}, {len(k['content'])} chars[/dim]"
+            )
+
+        console.print()
+    except typer.Exit:
+        raise
+    except Exception:
+        console.print("[red]\u2717[/red] Failed to show profile")
+        console.print_exception()
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# Serve command (FastAPI)
+# ---------------------------------------------------------------------------
+
+
+@app.command("serve")
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host", help="Host to bind to"),
+    port: int = typer.Option(8000, "--port", help="Port to bind to"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
+) -> None:
+    """Start the Cirrus Ops REST API server."""
+    import uvicorn
+
+    console.print(
+        f"[bold blue]Starting Cirrus Ops API on {host}:{port}...[/bold blue]"
+    )
+    uvicorn.run(
+        "cirrus_ops.api.app:app",
+        host=host,
+        port=port,
+        reload=reload,
+    )
 
 
 if __name__ == "__main__":

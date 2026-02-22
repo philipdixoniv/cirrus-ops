@@ -6,18 +6,26 @@ import anthropic
 
 from cirrus_ops.config import settings
 from cirrus_ops.mining.prompts import CONTENT_GENERATION_SYSTEM, CONTENT_TYPE_PROMPTS
+from cirrus_ops.mining import profiles as profile_mod
 from cirrus_ops import db
 
 logger = logging.getLogger(__name__)
 
 
-def generate_content(story_id: str, content_type: str) -> dict:
+def generate_content(
+    story_id: str,
+    content_type: str,
+    profile_name: str = "default",
+    brief_context: dict | None = None,
+) -> dict:
     """Generate a piece of content from an extracted story using Claude.
 
     Args:
         story_id: The unique identifier of the extracted story.
-        content_type: The type of content to generate. Must be one of:
-            ``linkedin_post``, ``book_excerpt``, ``tweet``, ``blog_post``.
+        content_type: The content type name (e.g., 'linkedin_post').
+        profile_name: The mining profile to use (default: "default").
+        brief_context: Optional dict with brief objective, key_messages,
+            target_personas, and tone_guidance to append to the prompt.
 
     Returns:
         A dict representing the inserted generated-content record.
@@ -26,24 +34,28 @@ def generate_content(story_id: str, content_type: str) -> dict:
         ValueError: If the story is not found or the content type is invalid.
     """
     logger.info(
-        "Generating %s content for story %s", content_type, story_id
+        "Generating %s content for story %s (profile: %s)",
+        content_type,
+        story_id,
+        profile_name,
     )
 
     story = db.get_story(story_id)
     if story is None:
         raise ValueError(f"Story not found: {story_id}")
 
-    if content_type not in CONTENT_TYPE_PROMPTS:
-        raise ValueError(
-            f"Invalid content_type '{content_type}'. "
-            f"Must be one of: {', '.join(CONTENT_TYPE_PROMPTS.keys())}"
-        )
+    # Load profile and resolve content type
+    profile = profile_mod.load_profile(profile_name)
+    profile_id = profile["id"]
 
-    prompt_template = CONTENT_TYPE_PROMPTS[content_type]
+    prompt_template, max_tokens = profile_mod.get_content_type_prompt(
+        profile, content_type
+    )
 
-    # Format the prompt with story data, providing safe defaults for
-    # fields that may be absent on certain content types (e.g. tweet
-    # templates don't use story_text or customer fields).
+    # Build grounded system prompt with knowledge
+    system_prompt = profile_mod.build_generation_system_prompt(profile)
+
+    # Format the user prompt with story data
     user_prompt = prompt_template.format(
         title=story.get("title", ""),
         summary=story.get("summary", ""),
@@ -53,14 +65,37 @@ def generate_content(story_id: str, content_type: str) -> dict:
         themes=", ".join(story.get("themes", [])),
     )
 
+    # Append brief context to user prompt when provided
+    if brief_context:
+        brief_parts = []
+        if brief_context.get("objective"):
+            brief_parts.append(f"Content Objective: {brief_context['objective']}")
+        if brief_context.get("key_messages"):
+            brief_parts.append(
+                "Key Messages:\n" + "\n".join(f"- {m}" for m in brief_context["key_messages"])
+            )
+        if brief_context.get("target_personas"):
+            brief_parts.append(
+                "Target Personas: " + ", ".join(brief_context["target_personas"])
+            )
+        if brief_context.get("tone_guidance"):
+            brief_parts.append(f"Tone Guidance: {brief_context['tone_guidance']}")
+        if brief_parts:
+            user_prompt += "\n\n--- Content Brief Context ---\n" + "\n\n".join(brief_parts)
+
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-    logger.info("Calling Claude for %s generation (model: %s)", content_type, settings.claude_model)
+    logger.info(
+        "Calling Claude for %s generation (model: %s, max_tokens: %d)",
+        content_type,
+        settings.claude_model,
+        max_tokens,
+    )
 
     response = client.messages.create(
         model=settings.claude_model,
-        max_tokens=4096,
-        system=CONTENT_GENERATION_SYSTEM,
+        max_tokens=max_tokens,
+        system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
     )
 
@@ -87,6 +122,7 @@ def generate_content(story_id: str, content_type: str) -> dict:
     # Persist to the database with draft status
     record = db.insert_content({
         "story_id": story_id,
+        "profile_id": profile_id,
         "content_type": content_type,
         "content": generated_text,
         "status": "draft",
@@ -102,13 +138,17 @@ def generate_content(story_id: str, content_type: str) -> dict:
     return record
 
 
-def batch_generate(story_id: str, content_types: list[str]) -> list[dict]:
+def batch_generate(
+    story_id: str,
+    content_types: list[str],
+    profile_name: str = "default",
+) -> list[dict]:
     """Generate multiple content types for a single story.
 
     Args:
         story_id: The unique identifier of the extracted story.
-        content_types: A list of content types to generate. Each must be one of:
-            ``linkedin_post``, ``book_excerpt``, ``tweet``, ``blog_post``.
+        content_types: A list of content type names to generate.
+        profile_name: The mining profile to use (default: "default").
 
     Returns:
         A list of dicts, one per generated content record.
@@ -117,9 +157,10 @@ def batch_generate(story_id: str, content_types: list[str]) -> list[dict]:
         ValueError: If the story is not found or any content type is invalid.
     """
     logger.info(
-        "Batch generating %d content types for story %s",
+        "Batch generating %d content types for story %s (profile: %s)",
         len(content_types),
         story_id,
+        profile_name,
     )
 
     # Validate the story exists once up front
@@ -127,18 +168,20 @@ def batch_generate(story_id: str, content_types: list[str]) -> list[dict]:
     if story is None:
         raise ValueError(f"Story not found: {story_id}")
 
-    # Validate all content types before starting
-    invalid = [ct for ct in content_types if ct not in CONTENT_TYPE_PROMPTS]
+    # Validate all content types against the profile
+    profile = profile_mod.load_profile(profile_name)
+    available = [ct["name"] for ct in profile.get("content_types", [])]
+    invalid = [ct for ct in content_types if ct not in available]
     if invalid:
         raise ValueError(
             f"Invalid content type(s): {', '.join(invalid)}. "
-            f"Must be one of: {', '.join(CONTENT_TYPE_PROMPTS.keys())}"
+            f"Available for profile '{profile_name}': {', '.join(available)}"
         )
 
     results: list[dict] = []
     for content_type in content_types:
         try:
-            record = generate_content(story_id, content_type)
+            record = generate_content(story_id, content_type, profile_name)
             results.append(record)
         except Exception:
             logger.exception(

@@ -7,6 +7,7 @@ import anthropic
 
 from cirrus_ops.config import settings
 from cirrus_ops.mining.prompts import STORY_EXTRACTION_SYSTEM, STORY_EXTRACTION_USER
+from cirrus_ops.mining import profiles as profile_mod
 from cirrus_ops import db
 
 logger = logging.getLogger(__name__)
@@ -17,8 +18,31 @@ CHUNK_OVERLAP = 5_000  # overlap between chunks for context continuity
 DEDUP_SIMILARITY_THRESHOLD = 0.8
 
 
-def _build_tool_schema() -> dict:
-    """Return the tool definition dict for structured story extraction."""
+def _build_tool_schema(themes: list[str] | None = None) -> dict:
+    """Return the tool definition dict for structured story extraction.
+
+    Args:
+        themes: Optional list of themes to constrain the themes enum. If None,
+            uses a free-form string array.
+    """
+    themes_schema: dict
+    if themes:
+        themes_schema = {
+            "type": "array",
+            "items": {"type": "string", "enum": themes},
+            "description": f"Themes from: {', '.join(themes)}",
+        }
+    else:
+        themes_schema = {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "Themes such as pricing, onboarding, support, "
+                "product-feedback, success-story, pain-point, "
+                "competitive, integration."
+            ),
+        }
+
     return {
         "name": "extract_stories",
         "description": (
@@ -46,15 +70,7 @@ def _build_tool_schema() -> dict:
                                 "type": "string",
                                 "description": "The relevant portion of the conversation.",
                             },
-                            "themes": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": (
-                                    "Themes such as pricing, onboarding, support, "
-                                    "product-feedback, success-story, pain-point, "
-                                    "competitive, integration."
-                                ),
-                            },
+                            "themes": themes_schema,
                             "customer_name": {
                                 "type": "string",
                                 "description": "The customer's name if mentioned.",
@@ -141,23 +157,24 @@ def _call_claude_for_stories(
     title: str,
     date: str,
     participants: str,
+    system_prompt: str,
+    user_prompt_template: str,
+    tool_schema: dict,
 ) -> list[dict]:
     """Call Claude with the extraction prompt and tool, returning parsed stories."""
-    user_prompt = STORY_EXTRACTION_USER.format(
+    user_prompt = user_prompt_template.format(
         title=title,
         date=date,
         participants=participants,
         transcript=transcript,
     )
 
-    tool_schema = _build_tool_schema()
-
     logger.info("Calling Claude for story extraction (model: %s)", settings.claude_model)
 
     response = client.messages.create(
         model=settings.claude_model,
         max_tokens=16384,
-        system=STORY_EXTRACTION_SYSTEM,
+        system=system_prompt,
         tools=[tool_schema],
         tool_choice={"type": "tool", "name": "extract_stories"},
         messages=[{"role": "user", "content": user_prompt}],
@@ -174,11 +191,12 @@ def _call_claude_for_stories(
     return []
 
 
-def extract_stories(meeting_id: str) -> list[dict]:
+def extract_stories(meeting_id: str, profile_name: str = "default") -> list[dict]:
     """Extract customer stories from a meeting transcript using Claude.
 
     Args:
         meeting_id: The unique identifier of the meeting to process.
+        profile_name: The mining profile to use (default: "default").
 
     Returns:
         A list of dicts representing the inserted story records.
@@ -186,7 +204,26 @@ def extract_stories(meeting_id: str) -> list[dict]:
     Raises:
         ValueError: If the meeting or its transcript is not found.
     """
-    logger.info("Starting story extraction for meeting %s", meeting_id)
+    logger.info(
+        "Starting story extraction for meeting %s (profile: %s)",
+        meeting_id,
+        profile_name,
+    )
+
+    # Load the profile
+    profile = profile_mod.load_profile(profile_name)
+    profile_id = profile["id"]
+
+    # Build grounded system prompt
+    system_prompt = profile_mod.build_extraction_system_prompt(profile)
+    user_prompt_template = profile["extraction_user_prompt"]
+
+    # Use profile's tool schema override or build from profile themes
+    if profile.get("extraction_tool_schema"):
+        tool_schema = profile["extraction_tool_schema"]
+    else:
+        themes = profile.get("themes", [])
+        tool_schema = _build_tool_schema(themes if themes else None)
 
     meeting = db.get_meeting(meeting_id)
     if meeting is None:
@@ -230,20 +267,47 @@ def extract_stories(meeting_id: str) -> list[dict]:
         for i, chunk in enumerate(chunks):
             logger.info("Processing chunk %d/%d", i + 1, len(chunks))
             chunk_stories = _call_claude_for_stories(
-                claude_client, chunk, title, str(date), participants_str
+                claude_client,
+                chunk,
+                title,
+                str(date),
+                participants_str,
+                system_prompt,
+                user_prompt_template,
+                tool_schema,
             )
             all_stories.extend(chunk_stories)
         stories = _deduplicate_stories(all_stories)
     else:
         stories = _call_claude_for_stories(
-            claude_client, full_text, title, str(date), participants_str
+            claude_client,
+            full_text,
+            title,
+            str(date),
+            participants_str,
+            system_prompt,
+            user_prompt_template,
+            tool_schema,
         )
+
+    # Filter by confidence threshold
+    threshold = profile.get("confidence_threshold", 0.5)
 
     # Persist each story to the database
     inserted: list[dict] = []
     for story in stories:
+        if story.get("confidence_score", 0) < threshold:
+            logger.info(
+                "Skipping low-confidence story: %s (%.2f < %.2f)",
+                story["title"],
+                story.get("confidence_score", 0),
+                threshold,
+            )
+            continue
+
         record = db.insert_story({
             "meeting_id": meeting_id,
+            "profile_id": profile_id,
             "title": story["title"],
             "summary": story["summary"],
             "story_text": story["story_text"],
