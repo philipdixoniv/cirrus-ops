@@ -1,0 +1,19 @@
+{
+  "name": "cirrus-ops-suite",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @cirrus/content-studio dev",
+    "build": "pnpm --filter @cirrus/content-studio build",
+    "preview": "pnpm --filter @cirrus/content-studio preview",
+    "dev:api": "pnpm --filter @cirrus/api dev"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

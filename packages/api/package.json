@@ -1,0 +1,9 @@
+{
+  "name": "@cirrus/api",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "uvicorn cirrus_ops.api.app:app --reload --port 8000",
+    "start": "uvicorn cirrus_ops.api.app:app --port 8000"
+  }
+}
