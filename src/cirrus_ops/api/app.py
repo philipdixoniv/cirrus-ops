@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from cirrus_ops.api.routers.auth import router as auth_router
 from cirrus_ops.api.routers.profiles import router as profiles_router
 from cirrus_ops.api.routers.mining import router as mining_router
 from cirrus_ops.api.routers.browse import router as browse_router
@@ -38,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(profiles_router, prefix="/api/profiles", tags=["profiles"])
 app.include_router(mining_router, prefix="/api/mining", tags=["mining"])
 app.include_router(browse_router, prefix="/api/browse", tags=["browse"])
