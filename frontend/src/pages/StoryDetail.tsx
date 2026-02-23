@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, ChevronDown, Zap, Shuffle, Eye, Edit3, GitCompare } from "lucide-react";
+import { RefreshCw, ChevronDown, Zap, Shuffle, Eye, Edit3, GitCompare } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useStory, useStoryContent } from "@/hooks/useStories";
 import { useContentVersions, useUpdateContent, useRegenerate } from "@/hooks/useContent";
 import { ThemeTag } from "@/components/ThemeTag";
@@ -16,6 +17,7 @@ import { BlogPreview } from "@/components/BlogPreview";
 import { VersionDiff } from "@/components/VersionDiff";
 import { ExportDialog } from "@/components/ExportDialog";
 import { ApprovalWorkflow } from "@/components/ApprovalWorkflow";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { formatDate, formatContentType } from "@/lib/utils";
 import type { Content } from "@/api/client";
 
@@ -56,7 +58,20 @@ export function StoryDetail() {
     : null;
 
   if (storyLoading) {
-    return <div className="text-muted-foreground">Loading story...</div>;
+    return (
+      <div className="max-w-5xl space-y-6">
+        <Skeleton className="h-4 w-32" />
+        <div className="border rounded-lg p-6 bg-card space-y-4">
+          <Skeleton className="h-7 w-2/3" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+      </div>
+    );
   }
 
   if (!story) {
@@ -65,13 +80,13 @@ export function StoryDetail() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      {/* Back link */}
-      <Link
-        to="/stories"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to Stories
-      </Link>
+      <PageHeader
+        title=""
+        breadcrumbs={[
+          { label: "Stories", href: "/stories" },
+          { label: story.title },
+        ]}
+      />
 
       {/* Story header */}
       <div className="border rounded-lg p-6 bg-card space-y-4">

@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { Quote } from "lucide-react";
 import { useQuotes, useThemes } from "@/hooks/useAnalytics";
 import { QuoteCard } from "@/components/QuoteCard";
 import { Pagination } from "@/components/Pagination";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export function QuoteLibrary() {
   const [theme, setTheme] = useState("");
@@ -37,6 +40,7 @@ export function QuoteLibrary() {
             setOffset(0);
           }}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by theme"
         >
           <option value="">All themes</option>
           {themes?.map((t) => (
@@ -64,6 +68,7 @@ export function QuoteLibrary() {
             setOffset(0);
           }}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by sentiment"
         >
           <option value="">All sentiments</option>
           <option value="positive">Positive</option>
@@ -88,13 +93,19 @@ export function QuoteLibrary() {
       </div>
 
       {isLoading && (
-        <div className="text-sm text-muted-foreground">Loading quotes...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
       )}
 
       {data && data.items.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          No quotes found. Quotes are extracted from quoted text in stories.
-        </div>
+        <EmptyState
+          icon={Quote}
+          title="No quotes found"
+          description="Quotes are automatically extracted from customer stories in meetings."
+        />
       )}
 
       {data && data.items.length > 0 && (

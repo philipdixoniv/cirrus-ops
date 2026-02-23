@@ -46,6 +46,7 @@ export function FilterBar({
         value={theme}
         onChange={(e) => setTheme(e.target.value)}
         className="text-sm border rounded-md px-3 py-1.5 bg-background"
+        aria-label="Filter by theme"
       >
         <option value="">All themes</option>
         {themes?.map((t) => (
@@ -59,6 +60,7 @@ export function FilterBar({
         value={sentiment}
         onChange={(e) => setSentiment(e.target.value)}
         className="text-sm border rounded-md px-3 py-1.5 bg-background"
+        aria-label="Filter by sentiment"
       >
         <option value="">All sentiments</option>
         {SENTIMENTS.filter(Boolean).map((s) => (
@@ -73,6 +75,7 @@ export function FilterBar({
           value={persona}
           onChange={(e) => setPersona(e.target.value)}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by persona"
         >
           <option value="">All personas</option>
           {profilePersonas.map((p) => (
@@ -88,6 +91,7 @@ export function FilterBar({
           value={funnelStage}
           onChange={(e) => setFunnelStage(e.target.value)}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by funnel stage"
         >
           <option value="">All funnel stages</option>
           {FUNNEL_STAGES.filter(Boolean).map((f) => (

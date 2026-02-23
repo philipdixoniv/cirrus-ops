@@ -7,6 +7,8 @@ import { ContentCard } from "@/components/ContentCard";
 import { Pagination } from "@/components/Pagination";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ExportDialog } from "@/components/ExportDialog";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { formatContentType, formatDate, truncate } from "@/lib/utils";
 import type { Content } from "@/api/client";
 
@@ -98,6 +100,7 @@ export function ContentLibrary() {
             setOffset(0);
           }}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by status"
         >
           <option value="">All statuses</option>
           <option value="draft">Draft</option>
@@ -111,6 +114,7 @@ export function ContentLibrary() {
             setOffset(0);
           }}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by content type"
         >
           <option value="">All types</option>
           <option value="linkedin_post">LinkedIn Post</option>
@@ -127,6 +131,7 @@ export function ContentLibrary() {
               setOffset(0);
             }}
             className="text-sm border rounded-md px-3 py-1.5 bg-background"
+            aria-label="Filter by persona"
           >
             <option value="">All personas</option>
             {profilePersonas.map((p) => (
@@ -143,6 +148,7 @@ export function ContentLibrary() {
             setOffset(0);
           }}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by funnel stage"
         >
           <option value="">All funnel stages</option>
           <option value="awareness">Awareness</option>
@@ -151,9 +157,7 @@ export function ContentLibrary() {
         </select>
       </div>
 
-      {isLoading && (
-        <div className="text-sm text-muted-foreground">Loading content...</div>
-      )}
+      {isLoading && <TableSkeleton rows={5} columns={6} />}
 
       {viewMode === "list" && data && (
         <ContentListView
@@ -208,15 +212,16 @@ function ContentListView({
 
   if (items.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        No content found.
-      </div>
+      <EmptyState
+        title="No content found"
+        description="Content will appear here once generated from stories."
+      />
     );
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <table className="w-full">
+    <div className="border rounded-lg overflow-x-auto">
+      <table className="w-full min-w-[600px]">
         <thead>
           <tr className="bg-muted/50 text-left text-sm">
             <th className="px-4 py-2 font-medium w-10"></th>
@@ -290,7 +295,7 @@ function ContentKanbanView({
   const columns = ["draft", "reviewed", "published"];
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {columns.map((status) => {
         const colItems = items.filter((c) => c.status === status);
         return (

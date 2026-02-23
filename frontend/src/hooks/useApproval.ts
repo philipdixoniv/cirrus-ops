@@ -6,6 +6,7 @@ export function useInitApproval() {
   return useMutation({
     mutationFn: ({ contentId, stages }: { contentId: string; stages?: string[] }) =>
       initApproval(contentId, stages),
+    meta: { successMessage: "Approval workflow started" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content"] });
       qc.invalidateQueries({ queryKey: ["storyContent"] });
@@ -23,6 +24,7 @@ export function useApproveContent() {
       contentId: string;
       data: { stage: string; person: string; notes?: string };
     }) => approveContent(contentId, data),
+    meta: { successMessage: "Content approved" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content"] });
       qc.invalidateQueries({ queryKey: ["storyContent"] });
@@ -40,6 +42,7 @@ export function useRejectContent() {
       contentId: string;
       data: { stage: string; person: string; notes?: string };
     }) => rejectContent(contentId, data),
+    meta: { successMessage: "Content rejected" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content"] });
       qc.invalidateQueries({ queryKey: ["storyContent"] });

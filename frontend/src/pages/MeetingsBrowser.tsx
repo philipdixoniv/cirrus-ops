@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useMeetings, useExtractStories } from "@/hooks/useMeetings";
+import { useProfile } from "@/contexts/ProfileContext";
 import { Pagination } from "@/components/Pagination";
 import { formatDateTime } from "@/lib/utils";
-import { BookOpen, Loader2 } from "lucide-react";
+import { BookOpen, Loader2, Video } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export function MeetingsBrowser() {
+  const { activeProfile } = useProfile();
   const [platform, setPlatform] = useState("");
   const [offset, setOffset] = useState(0);
   const [extractingId, setExtractingId] = useState<string | null>(null);
@@ -21,7 +25,7 @@ export function MeetingsBrowser() {
   const handleExtract = (meetingId: string) => {
     setExtractingId(meetingId);
     extractMutation.mutate(
-      { meetingId, profileName: "marketing" },
+      { meetingId, profileName: activeProfile?.name },
       { onSettled: () => setExtractingId(null) }
     );
   };
@@ -43,6 +47,7 @@ export function MeetingsBrowser() {
             setOffset(0);
           }}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by platform"
         >
           <option value="">All platforms</option>
           <option value="gong">Gong</option>
@@ -50,21 +55,19 @@ export function MeetingsBrowser() {
         </select>
       </div>
 
-      {isLoading && (
-        <div className="text-sm text-muted-foreground">
-          Loading meetings...
-        </div>
-      )}
+      {isLoading && <TableSkeleton rows={5} columns={6} />}
 
       {data && data.items.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          No meetings found.
-        </div>
+        <EmptyState
+          icon={Video}
+          title="No meetings found"
+          description="Meetings will appear here once synced from your connected platforms."
+        />
       )}
 
       {data && data.items.length > 0 && (
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full">
+        <div className="border rounded-lg overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr className="bg-muted/50 text-left text-sm">
                 <th className="px-4 py-2 font-medium">Title</th>

@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Target } from "lucide-react";
 import { useCampaigns, useCreateCampaign } from "@/hooks/useCampaigns";
 import { useProfile } from "@/contexts/ProfileContext";
 import { CampaignCard } from "@/components/CampaignCard";
 import { CampaignForm } from "@/components/CampaignForm";
 import { Pagination } from "@/components/Pagination";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export function Campaigns() {
   const { profileId } = useProfile();
@@ -64,6 +66,7 @@ export function Campaigns() {
             setOffset(0);
           }}
           className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          aria-label="Filter by status"
         >
           <option value="">All statuses</option>
           <option value="planning">Planning</option>
@@ -82,13 +85,20 @@ export function Campaigns() {
       )}
 
       {isLoading && (
-        <div className="text-sm text-muted-foreground">Loading campaigns...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
       )}
 
       {data && data.items.length === 0 && !showCreate && (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>No campaigns yet. Create your first campaign to get started.</p>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="No campaigns yet"
+          description="Create your first campaign to organize content around marketing objectives."
+          action={{ label: "New Campaign", onClick: () => setShowCreate(true) }}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
