@@ -9,6 +9,7 @@ from cirrus_ops.api.routers.profiles import router as profiles_router
 from cirrus_ops.api.routers.mining import router as mining_router
 from cirrus_ops.api.routers.browse import router as browse_router
 from cirrus_ops.api.routers.campaigns import router as campaigns_router
+from cirrus_ops.api.routers.sales import router as sales_router
 
 
 @asynccontextmanager
@@ -41,6 +42,7 @@ app.include_router(profiles_router, prefix="/api/profiles", tags=["profiles"])
 app.include_router(mining_router, prefix="/api/mining", tags=["mining"])
 app.include_router(browse_router, prefix="/api/browse", tags=["browse"])
 app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
+app.include_router(sales_router, prefix="/api/sales", tags=["sales"])
 
 
 @app.get("/health")

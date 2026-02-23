@@ -17,7 +17,7 @@ from cirrus_ops.api.schemas import (
     PipelineStatus,
     PresetCreate,
     PresetResponse,
-    QuoteItem,
+    CustomerQuoteItem,
     SearchResponse,
     SentimentBreakdown,
     StoryResponse,
@@ -254,11 +254,11 @@ def competitor_mentions(limit: int = Query(20, ge=1, le=50)):
     return db.get_competitor_mentions(limit=limit)
 
 
-# -- Quotes --
+# -- Customer Quotes --
 
 
-@router.get("/quotes", response_model=PaginatedResponse)
-def list_quotes(
+@router.get("/customer-quotes", response_model=PaginatedResponse)
+def list_customer_quotes(
     theme: str | None = None,
     company: str | None = None,
     sentiment: str | None = None,
@@ -266,14 +266,14 @@ def list_quotes(
     offset: int = Query(0, ge=0),
 ):
     """Customer quotes extracted from stories."""
-    rows, total = db.get_quotes(
+    rows, total = db.get_customer_quotes(
         theme=theme,
         company=company,
         sentiment=sentiment,
         limit=limit,
         offset=offset,
     )
-    items = [QuoteItem(**r) for r in rows]
+    items = [CustomerQuoteItem(**r) for r in rows]
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 

@@ -2,13 +2,13 @@ import { Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ThemeTag } from "./ThemeTag";
-import type { QuoteItem } from "@/api/client";
+import type { CustomerQuoteItem } from "@/api/client";
 
-interface QuoteCardProps {
-  quote: QuoteItem;
+interface CustomerQuoteCardProps {
+  quote: CustomerQuoteItem;
 }
 
-export function QuoteCard({ quote }: QuoteCardProps) {
+export function CustomerQuoteCard({ quote }: CustomerQuoteCardProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {

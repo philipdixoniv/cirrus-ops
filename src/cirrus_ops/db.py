@@ -667,10 +667,10 @@ def delete_preset(preset_id: str) -> None:
 # -- Quote extraction --
 
 
-_QUOTE_RE = re.compile(r'["\u201c\u201d]([^"\u201c\u201d]{20,300})["\u201c\u201d]')
+_CUSTOMER_QUOTE_RE = re.compile(r'["\u201c\u201d]([^"\u201c\u201d]{20,300})["\u201c\u201d]')
 
 
-def get_quotes(
+def get_customer_quotes(
     theme: str | None = None,
     company: str | None = None,
     sentiment: str | None = None,
@@ -690,7 +690,7 @@ def get_quotes(
     quotes: list[dict[str, Any]] = []
     for row in result.data:
         text = row.get("story_text") or ""
-        for match in _QUOTE_RE.finditer(text):
+        for match in _CUSTOMER_QUOTE_RE.finditer(text):
             quotes.append({
                 "quote": match.group(1),
                 "customer_name": row.get("customer_name"),
@@ -947,6 +947,133 @@ def reject_approval(
             step["timestamp"] = datetime.utcnow().isoformat()
             break
     return update_content(content_id, {"approval_chain": chain})
+
+
+# -- Sales quote operations --
+
+
+def create_sales_quote(data: dict[str, Any]) -> dict[str, Any]:
+    """Create a new sales quote."""
+    result = client().table("sales_quotes").insert(data).execute()
+    return result.data[0]
+
+
+def get_sales_quote(quote_id: str) -> dict[str, Any] | None:
+    """Fetch a single sales quote by ID."""
+    result = client().table("sales_quotes").select("*").eq("id", quote_id).execute()
+    return result.data[0] if result.data else None
+
+
+def list_sales_quotes(
+    status: str | None = None,
+    customer_company: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], int]:
+    """List sales quotes with optional filters. Returns (rows, total_count)."""
+    query = client().table("sales_quotes").select("*", count="exact")
+    if status:
+        query = query.eq("status", status)
+    if customer_company:
+        query = query.ilike("customer_company", f"%{customer_company}%")
+    result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+    return result.data, result.count or 0
+
+
+def update_sales_quote(quote_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Update a sales quote."""
+    result = (
+        client()
+        .table("sales_quotes")
+        .update(data)
+        .eq("id", quote_id)
+        .execute()
+    )
+    return result.data[0]
+
+
+def delete_sales_quote(quote_id: str) -> None:
+    """Delete a sales quote and its items (cascade)."""
+    client().table("sales_quotes").delete().eq("id", quote_id).execute()
+
+
+def get_sales_quote_items(quote_id: str) -> list[dict[str, Any]]:
+    """Fetch all line items for a sales quote."""
+    result = (
+        client()
+        .table("sales_quote_items")
+        .select("*")
+        .eq("quote_id", quote_id)
+        .order("sort_order")
+        .execute()
+    )
+    return result.data
+
+
+def upsert_sales_quote_items(quote_id: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Replace all line items for a sales quote (delete-then-insert)."""
+    client().table("sales_quote_items").delete().eq("quote_id", quote_id).execute()
+    if not items:
+        return []
+    rows = [
+        {**item, "quote_id": quote_id, "id": str(uuid.uuid4())}
+        for item in items
+    ]
+    result = client().table("sales_quote_items").insert(rows).execute()
+    return result.data
+
+
+def recalculate_sales_quote_totals(quote_id: str) -> dict[str, Any]:
+    """Recalculate subtotal and total for a sales quote based on its items."""
+    items = get_sales_quote_items(quote_id)
+    subtotal = sum(float(item.get("total") or 0) for item in items)
+    quote = get_sales_quote(quote_id)
+    discount_pct = float(quote.get("discount_pct") or 0) if quote else 0
+    total = round(subtotal * (1 - discount_pct / 100), 2)
+    return update_sales_quote(quote_id, {
+        "subtotal": round(subtotal, 2),
+        "total": total,
+    })
+
+
+# -- Order operations --
+
+
+def create_order(data: dict[str, Any]) -> dict[str, Any]:
+    """Create a new order."""
+    result = client().table("orders").insert(data).execute()
+    return result.data[0]
+
+
+def get_order(order_id: str) -> dict[str, Any] | None:
+    """Fetch a single order by ID."""
+    result = client().table("orders").select("*").eq("id", order_id).execute()
+    return result.data[0] if result.data else None
+
+
+def list_orders(
+    status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], int]:
+    """List orders with optional filters. Returns (rows, total_count)."""
+    query = client().table("orders").select("*", count="exact")
+    if status:
+        query = query.eq("status", status)
+    result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+    return result.data, result.count or 0
+
+
+def update_order(order_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Update an order."""
+    result = (
+        client()
+        .table("orders")
+        .update(data)
+        .eq("id", order_id)
+        .execute()
+    )
+    return result.data[0]
 
 
 def get_recent_activity(limit: int = 15) -> list[dict[str, Any]]:

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Quote } from "lucide-react";
-import { useQuotes, useThemes } from "@/hooks/useAnalytics";
-import { QuoteCard } from "@/components/QuoteCard";
+import { useCustomerQuotes, useThemes } from "@/hooks/useAnalytics";
+import { CustomerQuoteCard } from "@/components/QuoteCard";
 import { Pagination } from "@/components/Pagination";
 import { CardSkeleton } from "@/components/ui/CardSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -14,7 +14,7 @@ export function QuoteLibrary() {
   const limit = 30;
 
   const { data: themes } = useThemes();
-  const { data, isLoading } = useQuotes({
+  const { data, isLoading } = useCustomerQuotes({
     theme: theme || undefined,
     company: company || undefined,
     sentiment: sentiment || undefined,
@@ -25,7 +25,7 @@ export function QuoteLibrary() {
   return (
     <div className="max-w-6xl space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Quote Library</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Customer Quotes</h1>
         <p className="text-muted-foreground">
           Customer quotes extracted from meeting stories
         </p>
@@ -112,7 +112,7 @@ export function QuoteLibrary() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {data.items.map((quote, i) => (
-              <QuoteCard key={`${quote.story_id}-${i}`} quote={quote} />
+              <CustomerQuoteCard key={`${quote.story_id}-${i}`} quote={quote} />
             ))}
           </div>
 

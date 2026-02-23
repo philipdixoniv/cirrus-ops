@@ -326,7 +326,7 @@ class PresetResponse(BaseModel):
     created_at: datetime | None = None
 
 
-class QuoteItem(BaseModel):
+class CustomerQuoteItem(BaseModel):
     quote: str
     customer_name: str | None = None
     customer_company: str | None = None
@@ -449,3 +449,99 @@ class ApprovalActionRequest(BaseModel):
 
 class InitApprovalRequest(BaseModel):
     stages: list[str] = Field(default_factory=list)
+
+
+# ============================================================
+# Sales Quotes & Orders schemas
+# ============================================================
+
+
+class SalesQuoteItemInput(BaseModel):
+    description: str
+    quantity: float = 1
+    unit_price: float
+    sort_order: int = 0
+
+
+class SalesQuoteCreate(BaseModel):
+    customer_name: str
+    customer_company: str | None = None
+    customer_email: str | None = None
+    discount_pct: float = 0
+    notes: str | None = None
+    valid_until: str | None = None
+    created_by: str | None = None
+    items: list[SalesQuoteItemInput] = Field(default_factory=list)
+
+
+class SalesQuoteUpdate(BaseModel):
+    customer_name: str | None = None
+    customer_company: str | None = None
+    customer_email: str | None = None
+    discount_pct: float | None = None
+    notes: str | None = None
+    valid_until: str | None = None
+    items: list[SalesQuoteItemInput] | None = None
+
+
+class SalesQuoteItemResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: str
+    quote_id: str
+    description: str
+    quantity: float
+    unit_price: float
+    total: float
+    sort_order: int
+
+
+class SalesQuoteResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: str
+    customer_name: str
+    customer_company: str | None = None
+    customer_email: str | None = None
+    status: str
+    subtotal: float | None = None
+    discount_pct: float | None = 0
+    total: float | None = None
+    notes: str | None = None
+    valid_until: str | None = None
+    created_by: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class SalesQuoteDetailResponse(SalesQuoteResponse):
+    items: list[SalesQuoteItemResponse] = Field(default_factory=list)
+
+
+class OrderCreate(BaseModel):
+    customer_name: str
+    customer_company: str | None = None
+    customer_email: str | None = None
+    total: float | None = None
+    notes: str | None = None
+    quote_id: str | None = None
+
+
+class OrderUpdate(BaseModel):
+    status: str | None = None
+    notes: str | None = None
+
+
+class OrderResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: str
+    quote_id: str | None = None
+    customer_name: str
+    customer_company: str | None = None
+    customer_email: str | None = None
+    status: str
+    total: float | None = None
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
