@@ -116,6 +116,7 @@ export function ApprovalWorkflow({ contentId, approvalChain }: ApprovalWorkflowP
             value={selectedPerson}
             onChange={(e) => setSelectedPerson(e.target.value)}
             className="w-full text-sm border rounded-md px-3 py-1.5 bg-background"
+            aria-label="Select approver"
           >
             <option value="">Select approver...</option>
             {approvers.map((a) => (
@@ -124,6 +125,11 @@ export function ApprovalWorkflow({ contentId, approvalChain }: ApprovalWorkflowP
               </option>
             ))}
           </select>
+          {!selectedPerson && (
+            <p className="text-xs text-muted-foreground">
+              Select an approver to enable actions
+            </p>
+          )}
           <input
             type="text"
             value={notes}
@@ -136,6 +142,7 @@ export function ApprovalWorkflow({ contentId, approvalChain }: ApprovalWorkflowP
               onClick={() => handleApprove(actionStage)}
               disabled={!selectedPerson || approveMutation.isPending}
               className="px-3 py-1 text-sm bg-green-600 text-white rounded-md disabled:opacity-50"
+              title={!selectedPerson ? "Select an approver first" : undefined}
             >
               Approve
             </button>
@@ -143,6 +150,7 @@ export function ApprovalWorkflow({ contentId, approvalChain }: ApprovalWorkflowP
               onClick={() => handleReject(actionStage)}
               disabled={!selectedPerson || rejectMutation.isPending}
               className="px-3 py-1 text-sm bg-red-600 text-white rounded-md disabled:opacity-50"
+              title={!selectedPerson ? "Select an approver first" : undefined}
             >
               Reject
             </button>

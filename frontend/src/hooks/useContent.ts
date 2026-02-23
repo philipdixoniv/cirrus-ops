@@ -44,7 +44,31 @@ export function useUpdateContent() {
       id: string;
       data: { content?: string; status?: string; tone?: string; status_note?: string };
     }) => updateContent(id, data),
-    onSuccess: () => {
+    meta: { successMessage: "Content saved" },
+    onMutate: async ({ id, data }) => {
+      // Only optimistic for status changes
+      if (!data.status) return;
+      await qc.cancelQueries({ queryKey: ["content"] });
+      const prev = qc.getQueriesData({ queryKey: ["content"] });
+      qc.setQueriesData({ queryKey: ["content"] }, (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((c: any) =>
+            c.id === id ? { ...c, ...data } : c
+          ),
+        };
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, context: any) => {
+      if (context?.prev) {
+        context.prev.forEach(([key, data]: [any, any]) => {
+          qc.setQueryData(key, data);
+        });
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["content"] });
       qc.invalidateQueries({ queryKey: ["storyContent"] });
     },
@@ -60,6 +84,7 @@ export function useRegenerate() {
       custom_instructions?: string;
       content_type?: string;
     }) => regenerateContent(data),
+    meta: { successMessage: "Content regenerated" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content"] });
       qc.invalidateQueries({ queryKey: ["storyContent"] });
@@ -95,6 +120,7 @@ export function useCreatePreset() {
       tone?: string;
       custom_instructions?: string;
     }) => createPreset(data),
+    meta: { successMessage: "Preset created" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["presets"] });
     },
@@ -105,6 +131,7 @@ export function useDeletePreset() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deletePreset(id),
+    meta: { successMessage: "Preset deleted" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["presets"] });
     },

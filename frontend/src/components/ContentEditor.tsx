@@ -24,6 +24,7 @@ interface ContentEditorProps {
 
 export function ContentEditor({ content }: ContentEditorProps) {
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
   const updateMutation = useUpdateContent();
 
   const editor = useEditor({
@@ -62,8 +63,8 @@ export function ContentEditor({ content }: ContentEditorProps) {
   const handleCopy = async () => {
     const text = editor?.getText() || content.content;
     await navigator.clipboard.writeText(text);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
@@ -86,12 +87,14 @@ export function ContentEditor({ content }: ContentEditorProps) {
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           active={editor.isActive("bold")}
+          ariaLabel="Bold"
         >
           <Bold className="h-4 w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           active={editor.isActive("italic")}
+          ariaLabel="Italic"
         >
           <Italic className="h-4 w-4" />
         </ToolbarButton>
@@ -100,34 +103,38 @@ export function ContentEditor({ content }: ContentEditorProps) {
             editor.chain().focus().toggleHeading({ level: 2 }).run()
           }
           active={editor.isActive("heading", { level: 2 })}
+          ariaLabel="Heading"
         >
           <Heading2 className="h-4 w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           active={editor.isActive("bulletList")}
+          ariaLabel="Bullet list"
         >
           <List className="h-4 w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           active={editor.isActive("orderedList")}
+          ariaLabel="Ordered list"
         >
           <ListOrdered className="h-4 w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           active={editor.isActive("blockquote")}
+          ariaLabel="Blockquote"
         >
           <Quote className="h-4 w-4" />
         </ToolbarButton>
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        <ToolbarButton onClick={() => editor.chain().focus().undo().run()}>
+        <ToolbarButton onClick={() => editor.chain().focus().undo().run()} ariaLabel="Undo">
           <Undo className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={() => editor.chain().focus().redo().run()}>
+        <ToolbarButton onClick={() => editor.chain().focus().redo().run()} ariaLabel="Redo">
           <Redo className="h-4 w-4" />
         </ToolbarButton>
 
@@ -136,9 +143,10 @@ export function ContentEditor({ content }: ContentEditorProps) {
         <button
           onClick={handleCopy}
           className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded hover:bg-accent transition-colors"
+          aria-label="Copy content"
         >
           <Copy className="h-3.5 w-3.5" />
-          Copy
+          {copied ? "Copied!" : "Copy"}
         </button>
         <button
           onClick={handleDownload}
@@ -167,14 +175,17 @@ function ToolbarButton({
   onClick,
   active,
   children,
+  ariaLabel,
 }: {
   onClick: () => void;
   active?: boolean;
   children: React.ReactNode;
+  ariaLabel?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      aria-label={ariaLabel}
       className={`p-1.5 rounded transition-colors ${
         active
           ? "bg-accent text-accent-foreground"

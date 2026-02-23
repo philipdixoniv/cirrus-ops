@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { BookOpen } from "lucide-react";
 import { useStories } from "@/hooks/useStories";
 import { useProfile } from "@/contexts/ProfileContext";
 import { StoryCard } from "@/components/StoryCard";
 import { FilterBar } from "@/components/FilterBar";
 import { Pagination } from "@/components/Pagination";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export function StoriesExplorer() {
   const { profileId } = useProfile();
@@ -64,13 +67,19 @@ export function StoriesExplorer() {
       />
 
       {isLoading && (
-        <div className="text-sm text-muted-foreground">Loading stories...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
       )}
 
       {data && data.items.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>No stories found matching your filters.</p>
-        </div>
+        <EmptyState
+          icon={BookOpen}
+          title="No stories found"
+          description="Try adjusting your filters or extract stories from meetings."
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

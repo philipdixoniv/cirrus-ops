@@ -27,6 +27,7 @@ export function useCreateBrief() {
       linked_story_ids?: string[];
       status?: string;
     }) => createBrief(data),
+    meta: { successMessage: "Brief created" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["briefs"] });
       qc.invalidateQueries({ queryKey: ["campaign"] });
@@ -42,6 +43,7 @@ export function useGenerateFromBrief() {
       content_types: string[];
       profile_name?: string;
     }) => generateFromBrief(data),
+    meta: { successMessage: "Content generated from brief" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["content"] });
       qc.invalidateQueries({ queryKey: ["campaign"] });

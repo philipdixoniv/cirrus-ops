@@ -10,8 +10,10 @@ import {
   Quote,
   CalendarDays,
   ChevronDown,
+  Menu,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SearchBar } from "./SearchBar";
 import { useProfile } from "@/contexts/ProfileContext";
 
@@ -29,88 +31,143 @@ const NAV_ITEMS = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profiles, activeProfile, setActiveProfile } = useProfile();
+
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const sidebarContent = (
+    <>
+      <div className="p-6 border-b">
+        <h1 className="text-lg font-bold tracking-tight">Content Studio</h1>
+        <p className="text-xs text-muted-foreground">Cirrus Ops</p>
+      </div>
+
+      {/* Profile switcher */}
+      {profiles.length > 0 && (
+        <div className="px-4 py-3 border-b">
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+            Profile
+          </label>
+          <div className="relative">
+            <select
+              value={activeProfile?.id || ""}
+              onChange={(e) => {
+                const p = profiles.find((p) => p.id === e.target.value);
+                setActiveProfile(p || null);
+              }}
+              className="w-full text-sm border rounded-md px-3 py-1.5 bg-background appearance-none pr-8"
+              aria-label="Select profile"
+            >
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.display_name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          </div>
+        </div>
+      )}
+
+      <nav className="flex-1 p-4 space-y-1">
+        {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+          const active =
+            to === "/"
+              ? location.pathname === "/"
+              : location.pathname.startsWith(to);
+          return (
+            <Link
+              key={to}
+              to={to}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 border-r bg-card flex flex-col shrink-0">
-        <div className="p-6 border-b">
-          <h1 className="text-lg font-bold tracking-tight">Content Studio</h1>
-          <p className="text-xs text-muted-foreground">Cirrus Ops</p>
-        </div>
-
-        {/* Profile switcher */}
-        {profiles.length > 0 && (
-          <div className="px-4 py-3 border-b">
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-              Profile
-            </label>
-            <div className="relative">
-              <select
-                value={activeProfile?.id || ""}
-                onChange={(e) => {
-                  const p = profiles.find((p) => p.id === e.target.value);
-                  setActiveProfile(p || null);
-                }}
-                className="w-full text-sm border rounded-md px-3 py-1.5 bg-background appearance-none pr-8"
-              >
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.display_name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            </div>
-          </div>
-        )}
-
-        <nav className="flex-1 p-4 space-y-1">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
-            const active =
-              to === "/"
-                ? location.pathname === "/"
-                : location.pathname.startsWith(to);
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-64 border-r bg-card flex-col shrink-0">
+        {sidebarContent}
       </aside>
+
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <aside className="relative w-64 h-full bg-card flex flex-col shadow-lg animate-in slide-in-from-left duration-200">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded hover:bg-accent"
+              aria-label="Close sidebar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-14 border-b flex items-center justify-between px-6 bg-card shrink-0">
+        <header className="h-14 border-b flex items-center justify-between px-4 md:px-6 bg-card shrink-0">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-1.5 rounded hover:bg-accent transition-colors"
+              aria-label="Open sidebar menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             {searchOpen ? (
               <SearchBar onClose={() => setSearchOpen(false)} />
             ) : (
               <button
                 onClick={() => setSearchOpen(true)}
                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Search stories and content"
               >
                 <Search className="h-4 w-4" />
-                Search stories & content...
+                <span className="hidden sm:inline">Search stories & content...</span>
+                <kbd className="hidden sm:inline-flex ml-2 px-1.5 py-0.5 text-[10px] font-mono bg-muted border rounded">
+                  {navigator.platform.includes("Mac") ? "\u2318" : "Ctrl"}K
+                </kbd>
               </button>
             )}
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

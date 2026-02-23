@@ -1,6 +1,10 @@
 import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Plus, Trash2, Loader2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   useCampaign,
   useUpdateCampaign,
@@ -40,9 +44,16 @@ export function CampaignDetail() {
   const [editValue, setEditValue] = useState("");
   const [briefStoryIds, setBriefStoryIds] = useState<string[]>([]);
   const [showBriefStoryPicker, setShowBriefStoryPicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (isLoading) {
-    return <div className="text-muted-foreground">Loading campaign...</div>;
+    return (
+      <div className="max-w-5xl space-y-6">
+        <div className="border rounded-lg p-6 bg-card space-y-4">
+          <CardSkeleton />
+        </div>
+      </div>
+    );
   }
 
   if (!campaign) {
@@ -69,11 +80,14 @@ export function CampaignDetail() {
   };
 
   const handleDelete = () => {
-    if (confirm("Delete this campaign? This cannot be undone.")) {
-      deleteMutation.mutate(campaign.id, {
-        onSuccess: () => navigate("/campaigns"),
-      });
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    setShowDeleteConfirm(false);
+    deleteMutation.mutate(campaign.id, {
+      onSuccess: () => navigate("/campaigns"),
+    });
   };
 
   const handleAddStories = (storyIds: string[]) => {
@@ -143,12 +157,13 @@ export function CampaignDetail() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <Link
-        to="/campaigns"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to Campaigns
-      </Link>
+      <PageHeader
+        title=""
+        breadcrumbs={[
+          { label: "Campaigns", href: "/campaigns" },
+          { label: campaign.name },
+        ]}
+      />
 
       {/* Campaign header */}
       <div className="border rounded-lg p-6 bg-card space-y-4">
@@ -285,9 +300,11 @@ export function CampaignDetail() {
           </div>
 
           {campaign.stories.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              No stories linked yet. Add stories to this campaign.
-            </div>
+            <EmptyState
+              title="No stories linked yet"
+              description="Add stories to this campaign to get started."
+              action={{ label: "Add Stories", onClick: () => setShowStoryPicker(true) }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {campaign.stories.map((story) => (
@@ -311,9 +328,10 @@ export function CampaignDetail() {
       {activeTab === "content" && (
         <div className="space-y-3">
           {campaign.content.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              No content assigned to this campaign yet.
-            </div>
+            <EmptyState
+              title="No content yet"
+              description="Content will appear here once generated from briefs or stories."
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {campaign.content.map((c) => (
@@ -363,9 +381,11 @@ export function CampaignDetail() {
           )}
 
           {campaign.briefs.length === 0 && !showBriefForm ? (
-            <div className="text-center py-12 text-muted-foreground">
-              No briefs yet. Create a brief to generate targeted content.
-            </div>
+            <EmptyState
+              title="No briefs yet"
+              description="Create a brief to generate targeted content."
+              action={{ label: "Create Brief", onClick: () => setShowBriefForm(true) }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {campaign.briefs.map((brief) => (
@@ -397,6 +417,16 @@ export function CampaignDetail() {
           onClose={() => setShowBriefStoryPicker(false)}
         />
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+        title="Delete campaign"
+        description="This will permanently delete this campaign. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }

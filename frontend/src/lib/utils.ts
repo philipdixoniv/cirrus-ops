@@ -40,3 +40,27 @@ export function formatContentType(ct: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
+
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+const currencyFormatterCents = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+export function formatCurrency(
+  amount: number | null | undefined,
+  showCents = false
+): string {
+  if (amount == null) return "$0";
+  return showCents
+    ? currencyFormatterCents.format(amount)
+    : currencyFormatter.format(amount);
+}

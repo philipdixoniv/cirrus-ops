@@ -32,6 +32,7 @@ export function useExtractStories() {
       meetingId: string;
       profileName?: string;
     }) => extractStories(meetingId, profileName),
+    meta: { successMessage: "Stories extracted" },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stories"] });
       qc.invalidateQueries({ queryKey: ["meetings"] });

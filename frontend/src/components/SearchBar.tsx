@@ -21,7 +21,7 @@ export function SearchBar({ onClose }: { onClose: () => void }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button onClick={onClose}>
+        <button onClick={onClose} aria-label="Close search">
           <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
         </button>
       </div>
@@ -56,6 +56,17 @@ export function SearchBar({ onClose }: { onClose: () => void }) {
                   )}
                 </button>
               ))}
+              {data.stories.length > 5 && (
+                <button
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-primary hover:bg-accent transition-colors"
+                  onClick={() => {
+                    navigate(`/stories?q=${encodeURIComponent(query)}`);
+                    onClose();
+                  }}
+                >
+                  View all {data.stories.length} stories
+                </button>
+              )}
             </div>
           )}
           {data && data.content.length > 0 && (
@@ -78,6 +89,17 @@ export function SearchBar({ onClose }: { onClose: () => void }) {
                   </div>
                 </button>
               ))}
+              {data.content.length > 5 && (
+                <button
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-primary hover:bg-accent transition-colors"
+                  onClick={() => {
+                    navigate(`/content?q=${encodeURIComponent(query)}`);
+                    onClose();
+                  }}
+                >
+                  View all {data.content.length} content items
+                </button>
+              )}
             </div>
           )}
         </div>
