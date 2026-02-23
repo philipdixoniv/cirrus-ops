@@ -8,7 +8,7 @@ import {
   fetchContentPipeline,
   fetchCompetitorMentions,
   fetchActivity,
-  fetchQuotes,
+  fetchCustomerQuotes,
 } from "@/api/client";
 
 export function useOverview() {
@@ -67,7 +67,7 @@ export function useActivity(limit = 15) {
   });
 }
 
-export function useQuotes(params: {
+export function useCustomerQuotes(params: {
   theme?: string;
   company?: string;
   sentiment?: string;
@@ -75,7 +75,7 @@ export function useQuotes(params: {
   offset?: number;
 }) {
   return useQuery({
-    queryKey: ["quotes", params],
-    queryFn: () => fetchQuotes(params),
+    queryKey: ["customerQuotes", params],
+    queryFn: () => fetchCustomerQuotes(params),
   });
 }

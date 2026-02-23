@@ -150,7 +150,7 @@ export interface Preset {
   created_at: string | null;
 }
 
-export interface QuoteItem {
+export interface CustomerQuoteItem {
   quote: string;
   customer_name: string | null;
   customer_company: string | null;
@@ -344,9 +344,9 @@ export function fetchCompetitorMentions(limit = 20) {
   );
 }
 
-// -- Quotes API --
+// -- Customer Quotes API --
 
-export function fetchQuotes(params: {
+export function fetchCustomerQuotes(params: {
   theme?: string;
   company?: string;
   sentiment?: string;
@@ -359,7 +359,7 @@ export function fetchQuotes(params: {
   if (params.sentiment) qs.set("sentiment", params.sentiment);
   if (params.limit) qs.set("limit", String(params.limit));
   if (params.offset) qs.set("offset", String(params.offset));
-  return request<PaginatedResponse<QuoteItem>>(`/browse/quotes?${qs}`);
+  return request<PaginatedResponse<CustomerQuoteItem>>(`/browse/customer-quotes?${qs}`);
 }
 
 // -- Activity API --
@@ -580,6 +580,153 @@ export function rejectContent(
 ) {
   return request<Content>(`/browse/content/${contentId}/reject`, {
     method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// -- Sales Quotes & Orders Types --
+
+export interface SalesQuoteItem {
+  id: string;
+  quote_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  sort_order: number;
+}
+
+export interface SalesQuote {
+  id: string;
+  customer_name: string;
+  customer_company: string | null;
+  customer_email: string | null;
+  status: string;
+  subtotal: number | null;
+  discount_pct: number | null;
+  total: number | null;
+  notes: string | null;
+  valid_until: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface SalesQuoteDetail extends SalesQuote {
+  items: SalesQuoteItem[];
+}
+
+export interface Order {
+  id: string;
+  quote_id: string | null;
+  customer_name: string;
+  customer_company: string | null;
+  customer_email: string | null;
+  status: string;
+  total: number | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+// -- Sales Quotes API --
+
+export function fetchSalesQuotes(params: {
+  status?: string;
+  customer_company?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.customer_company) qs.set("customer_company", params.customer_company);
+  if (params.limit) qs.set("limit", String(params.limit));
+  if (params.offset) qs.set("offset", String(params.offset));
+  return request<PaginatedResponse<SalesQuote>>(`/sales/quotes?${qs}`);
+}
+
+export function fetchSalesQuote(id: string) {
+  return request<SalesQuoteDetail>(`/sales/quotes/${id}`);
+}
+
+export function createSalesQuote(data: {
+  customer_name: string;
+  customer_company?: string;
+  customer_email?: string;
+  discount_pct?: number;
+  notes?: string;
+  valid_until?: string;
+  created_by?: string;
+  items?: Array<{ description: string; quantity: number; unit_price: number; sort_order?: number }>;
+}) {
+  return request<SalesQuoteDetail>(`/sales/quotes`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateSalesQuote(
+  id: string,
+  data: {
+    customer_name?: string;
+    customer_company?: string;
+    customer_email?: string;
+    discount_pct?: number;
+    notes?: string;
+    valid_until?: string;
+    items?: Array<{ description: string; quantity: number; unit_price: number; sort_order?: number }>;
+  }
+) {
+  return request<SalesQuoteDetail>(`/sales/quotes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteSalesQuote(id: string) {
+  return request<void>(`/sales/quotes/${id}`, { method: "DELETE" });
+}
+
+export function sendSalesQuote(id: string) {
+  return request<SalesQuote>(`/sales/quotes/${id}/send`, { method: "POST" });
+}
+
+export function acceptSalesQuote(id: string) {
+  return request<SalesQuote>(`/sales/quotes/${id}/accept`, { method: "POST" });
+}
+
+export function rejectSalesQuote(id: string) {
+  return request<SalesQuote>(`/sales/quotes/${id}/reject`, { method: "POST" });
+}
+
+export function convertQuoteToOrder(id: string) {
+  return request<Order>(`/sales/quotes/${id}/convert-to-order`, { method: "POST" });
+}
+
+// -- Orders API --
+
+export function fetchOrders(params: {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.limit) qs.set("limit", String(params.limit));
+  if (params.offset) qs.set("offset", String(params.offset));
+  return request<PaginatedResponse<Order>>(`/sales/orders?${qs}`);
+}
+
+export function fetchOrder(id: string) {
+  return request<Order>(`/sales/orders/${id}`);
+}
+
+export function updateOrder(
+  id: string,
+  data: { status?: string; notes?: string }
+) {
+  return request<Order>(`/sales/orders/${id}`, {
+    method: "PUT",
     body: JSON.stringify(data),
   });
 }

@@ -15,6 +15,12 @@ import { QuoteLibrary } from "@/pages/QuoteLibrary";
 import { ContentCalendar } from "@/pages/ContentCalendar";
 import { Campaigns } from "@/pages/Campaigns";
 import { CampaignDetail } from "@/pages/CampaignDetail";
+import { SalesQuotes } from "@/pages/SalesQuotes";
+import { SalesQuoteCreate } from "@/pages/SalesQuoteCreate";
+import { SalesQuoteDetail } from "@/pages/SalesQuoteDetail";
+import { SalesQuoteEdit } from "@/pages/SalesQuoteEdit";
+import { Orders } from "@/pages/Orders";
+import { OrderDetail } from "@/pages/OrderDetail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,8 +56,14 @@ export default function App() {
                 <Route path="/content" element={<ContentLibrary />} />
                 <Route path="/meetings" element={<MeetingsBrowser />} />
                 <Route path="/analytics" element={<Analytics />} />
-                <Route path="/quotes" element={<QuoteLibrary />} />
+                <Route path="/customer-quotes" element={<QuoteLibrary />} />
                 <Route path="/calendar" element={<ContentCalendar />} />
+                <Route path="/sales/quotes" element={<SalesQuotes />} />
+                <Route path="/sales/quotes/new" element={<SalesQuoteCreate />} />
+                <Route path="/sales/quotes/:id" element={<SalesQuoteDetail />} />
+                <Route path="/sales/quotes/:id/edit" element={<SalesQuoteEdit />} />
+                <Route path="/sales/orders" element={<Orders />} />
+                <Route path="/sales/orders/:id" element={<OrderDetail />} />
               </Routes>
             </Layout>
           </ErrorBoundary>

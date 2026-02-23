@@ -9,23 +9,33 @@ import {
   Search,
   Quote,
   CalendarDays,
+  Receipt,
+  ShoppingCart,
   ChevronDown,
   Menu,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SearchBar } from "./SearchBar";
 import { useProfile } from "@/contexts/ProfileContext";
 
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/campaigns", label: "Campaigns", icon: Target },
-  { to: "/stories", label: "Stories", icon: BookOpen },
-  { to: "/content", label: "Content Library", icon: FileText },
-  { to: "/meetings", label: "Meetings", icon: Video },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/quotes", label: "Quotes", icon: Quote },
-  { to: "/calendar", label: "Calendar", icon: CalendarDays },
+type NavItem =
+  | { type: "link"; to: string; label: string; icon: LucideIcon }
+  | { type: "separator"; label: string };
+
+const NAV_ITEMS: NavItem[] = [
+  { type: "link", to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { type: "link", to: "/campaigns", label: "Campaigns", icon: Target },
+  { type: "link", to: "/stories", label: "Stories", icon: BookOpen },
+  { type: "link", to: "/content", label: "Content Library", icon: FileText },
+  { type: "link", to: "/meetings", label: "Meetings", icon: Video },
+  { type: "link", to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { type: "link", to: "/customer-quotes", label: "Customer Quotes", icon: Quote },
+  { type: "link", to: "/calendar", label: "Calendar", icon: CalendarDays },
+  { type: "separator", label: "Sales" },
+  { type: "link", to: "/sales/quotes", label: "Quotes", icon: Receipt },
+  { type: "link", to: "/sales/orders", label: "Orders", icon: ShoppingCart },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -85,7 +95,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       <nav className="flex-1 p-4 space-y-1">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+        {NAV_ITEMS.map((item, index) => {
+          if (item.type === "separator") {
+            return (
+              <div key={`sep-${index}`} className="pt-4 pb-1 px-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {item.label}
+                </span>
+              </div>
+            );
+          }
+          const { to, label, icon: Icon } = item;
           const active =
             to === "/"
               ? location.pathname === "/"
