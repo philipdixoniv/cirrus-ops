@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 import {
   LayoutDashboard,
   Target,
@@ -18,7 +18,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SearchBar } from "./SearchBar";
+import { UserMenu } from "./UserMenu";
 import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 type NavItem =
   | { type: "link"; to: string; label: string; icon: LucideIcon }
@@ -38,11 +41,13 @@ const NAV_ITEMS: NavItem[] = [
   { type: "link", to: "/sales/orders", label: "Orders", icon: ShoppingCart },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout() {
   const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profiles, activeProfile, setActiveProfile } = useProfile();
+  const { orgs, activeOrg, setActiveOrg } = useAuth();
+  const queryClient = useQueryClient();
 
   // Close mobile sidebar on navigation
   useEffect(() => {
@@ -66,6 +71,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <h1 className="text-lg font-bold tracking-tight">Content Studio</h1>
         <p className="text-xs text-muted-foreground">Cirrus Ops</p>
       </div>
+
+      {/* Org switcher */}
+      {orgs.length > 1 && (
+        <div className="px-4 py-3 border-b">
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+            Organization
+          </label>
+          <div className="relative">
+            <select
+              value={activeOrg?.id || ""}
+              onChange={(e) => {
+                const org = orgs.find((o) => o.id === e.target.value);
+                if (org) {
+                  setActiveOrg(org);
+                  queryClient.invalidateQueries();
+                }
+              }}
+              className="w-full text-sm border rounded-md px-3 py-1.5 bg-background appearance-none pr-8"
+              aria-label="Select organization"
+            >
+              {orgs.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          </div>
+        </div>
+      )}
 
       {/* Profile switcher */}
       {profiles.length > 0 && (
@@ -184,10 +219,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </button>
             )}
           </div>
+          <UserMenu />
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6"><Outlet /></main>
       </div>
     </div>
   );
